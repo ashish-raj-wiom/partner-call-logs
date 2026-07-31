@@ -2,10 +2,12 @@
 
 | | | | |
 |---|---|---|---|
-| **Owner** — Ashish Raj (PM) | **Reviewer** — Saurabh Goyal (Engineering Lead) | **Status** — In review | **Sign-off** — Blocked on Legal re-review (OV-5) |
-| **Version** — v1.3 · 28 Jul 2026 | **Consulted — Legal / Compliance** — **Re-review required** (OV-5) | **Consulted — CSP App Eng** — TBD (OV-3) | **Consulted — Technician App Eng** — TBD (OV-3) |
+| **Owner** — Ashish Raj (PM) | **Reviewer** — Saurabh Goyal (Engineering Lead) | **Status** — In review | **Sign-off** — Blocked on Legal re-review (OV-6) |
+| **Version** — v1.4 · 31 Jul 2026 | **Consulted — Legal / Compliance** — **Re-review required** (OV-6) | **Consulted — CSP App Eng** — TBD (OV-3) | **Consulted — Technician App Eng** — TBD (OV-3) |
 
 **v1.1 change:** the mandatory-permission gate is now a per-app switch (C-09) that **defaults OFF**. v1.0 hard-wired it ON. See R10, T17–T20, OV-2.
+
+**v1.4 change:** no partner-facing disclosure. The purpose-notice screen, the settings status screen and the experience-intent line are removed; R5 is reduced to the permission-grant gate and G6 to "no capture without grant". G1 can no longer rest on disclosure, so it becomes *internal use, restricted access*. The Android permission dialog remains — the OS forces it and Wiom cannot suppress it (OV-6).
 
 **v1.3 change:** **Appendix A** lands — the full recorded field inventory — 28 fields on every record, and up to 10 more where the device provides them (OV-4). R1 gains (g): capture every Tier 1 and Tier 2 field, and record absence rather than omitting silently. Per-user analysis is now permitted, which reverses v1.2 — G1 becomes *disclosed purpose*, R7 is inverted, and **Legal must re-review** (OV-5).
 
@@ -30,7 +32,7 @@ It leaves unchanged:
 - **IVR routing itself.** How calls are bridged, PINs allocated or masked numbers issued is `csp-ivr-service`'s (AC-REG-1).
 - **The in-app Call CTA.** Placing a call is untouched; this feature only observes afterwards (AC-REG-2).
 - **The Customer App.** Not instrumented. The customer side of a call is seen only as the counterparty on a partner-side device (AC-REG-3).
-- **How a partner is paid, scored or disciplined.** This spec does not change any incentive, quality or compliance mechanism. It does make per-user call data available to them as an input, which v1.2 forbade — see R7 and OV-4.
+- **How a partner is paid, scored or disciplined.** This spec does not change any incentive, quality or compliance mechanism. It does make per-user call data available to them as an input, which v1.2 forbade — see R7 and OV-5.
 - **The legacy partner app** (`com.i2e1.wiom.rohit`). Not changed. Its pipeline stays dead; the series restarts on the new apps.
 - **Recording a call, and the content of a call.** Wiom never records audio and never taps a live call, and no stored field carries what was said or written on a call (G3).
 
@@ -46,12 +48,12 @@ It leaves unchanged:
 
 | ID | Guardrail | One line | Anchors |
 |---|---|---|---|
-| G1 | **Disclosed purpose** | Captured call data is used for IVR quality measurement and for per-user call analysis, including at named-partner level — and the notice tells the user so before capture begins. Nothing is analysed that the user was not told about. | R5a · R7 · R9 · AC-GRD-1 · AC-GRD-2 · MQ-6 |
+| G1 | **Internal use, restricted access** | Captured call data stays inside Wiom, reachable only by named analytics roles, and every read of a raw counterparty number is logged. No partner ever sees another partner's data. | R7 · R9 · AC-GRD-1 · AC-GRD-2 · MQ-6 |
 | G2 | **Honest denominator** | Every published comparison states its permission coverage and its SIM-only limit; no bypass figure is ever presented as a total. | R6 · AC-GRD-3 · MQ-5 |
 | G3 | **Metadata only, never content** | Wiom never records audio and never taps a live call. Every field is read from what the device's own call log already stored, and no field carries the content of a call — no voicemail transcription, no message text, no images. | R1 MUST NOT a · AC-GRD-4 · MQ-6 |
 | G4 | **Every record is attributable** | A stored record always names the signed-in account and the device. An unattributable call is not stored. | R2 · AC-GRD-5 · MQ-4 |
 | G5 | **No silent loss** | A captured call is either delivered to the platform or still waiting on the device. It is never dropped to recover from a failure or to make room. | R3 · AC-FAIL-1 · AC-FAIL-2 · MQ-3 |
-| G6 | **Notice before capture** | No call is captured until the user has seen what is collected and why, and has granted permission. | R5 · AC-GRD-6 · MQ-6 |
+| G6 | **No capture without grant** | No call is captured until Android has granted the call-log permission. This is an OS constraint as much as a promise — capture is impossible before the grant. | R5a · AC-GRD-6 · MQ-6 |
 
 ### Success metrics
 
@@ -62,7 +64,7 @@ It leaves unchanged:
 | M3 | Partner↔customer SIM calls placed outside a Wiom number — **a floor, not a total** (G2) | n/a — new capability | Measured, not targeted in V1 | MQ-1 |
 | M4 | Delivered records naming which of the user's own SIMs carried the call | **~42%** *(Jun 2026: own number missing on 55.9% of outgoing and 59.8% of incoming records)* | ≥ C-07 (95%) | MQ-4 |
 
-**Invariant (not a metric):** G1 — analyses or exports of captured call data for a purpose the notice does not name = **0**, zero tolerance. Monitored via MQ-6, not trended.
+**Invariant (not a metric):** G1 — reads or exports of captured call data by anyone outside the named analytics roles = **0**, and instances of one partner seeing another partner's data = **0**. Both zero tolerance. Monitored via MQ-6, not trended.
 
 **Invariant (not a metric):** G3 — calls recorded or intercepted by Wiom = **0**, and content-bearing fields stored = **0**, both zero tolerance. Every stored field traces to a row in Appendix A. Monitored via MQ-6, not trended.
 
@@ -76,9 +78,9 @@ It leaves unchanged:
 | R2 | As an analyst, I want every record tied to a known account, so a record I cannot attribute never pollutes a rate. | **(a)** Store the signed-in account and device on every record. **(b)** Keep the attribution the call was captured with, even if the user later signs out or another user signs in. | **(a)** Store a call that happened while nobody was signed in. **(b)** Re-attribute an already-captured call to a different account. |
 | R3 | As an analyst, I want no call quietly lost, because a rate computed on an unknown denominator is worse than no rate. | **(a)** Hold a captured call on the device until the platform confirms it has it. **(b)** Deliver within C-01 of the call ending, once the device has a working connection. | **(a)** Discard a captured call because delivery failed. **(b)** Discard a captured call to make room when the device queue is full — pause capture and raise a health signal instead (G5). |
 | R4 | As an analyst, I want calls that happen while the app is closed or killed, because Indian devices routinely kill background apps and those calls are not a random sample. | **(a)** When the app opens or permission is granted, capture any call in the device log within C-02 that the platform does not already have. **(b)** Capture each call once — however many times it is scanned, and whichever instrumented app scans it, including when both apps sit on the same phone. | Depend on the app being awake when the call happens. |
-| R5 | As a partner or technician, I want to be told plainly what is collected from my phone and why, before it starts. | **(a)** Before asking for permission, show what is captured, why, how long it is kept and who to contact. **(b)** Capture nothing until permission is granted. | Capture, or ask for permission, before showing the notice (G6). |
+| R5 | As the platform owner, I want capture gated strictly on the Android permission grant, so nothing is read before the OS allows it. | **(a)** Capture nothing until the call-log permission is granted. | Read the device call log, or any part of it, before the grant (G6). |
 | R6 | As the PM reading the result, I want to not be misled by my own data. | **(a)** State the permission coverage (MQ-5) beside every published IVR-versus-direct comparison. **(b)** Label every bypass figure a floor, and name the SIM-only limit. | Present a bypass figure as a total, or publish a comparison when coverage sits below C-05 (G2). |
-| R7 | As the PM, I want to analyse call behaviour for a named user — how much they call, and how much of it bypasses the IVR — so a bypass pattern can be traced to where it happens rather than only counted. | **(a)** Allow analysis at named-user level, keyed on the signed-in account, its role and its partner account. **(b)** Name per-user analysis in the notice shown before capture, so no user is analysed for a purpose they were not told about (G1). | **(a)** Analyse or export captured call data for any purpose the notice does not name (G1). **(b)** Show one partner's call data to another partner, or to anyone outside the named roles in R9. |
+| R7 | As the PM, I want to analyse call behaviour for a named user — how much they call, and how much of it bypasses the IVR — so a bypass pattern can be traced to where it happens rather than only counted. | **(a)** Allow analysis at named-user level, keyed on the signed-in account, its role and its partner account. | **(a)** Expose captured call data to anyone outside the named analytics roles in R9 (G1). **(b)** Show one partner's call data to another partner. |
 | R8 | As an analyst, I want each call correctly sorted into "went through Wiom" or "went direct", because the whole comparison rests on that split. | **(a)** Classify each delivered record by matching the counterparty against the register of Wiom-owned numbers. **(b)** Reflect a newly provisioned Wiom number in the register within C-08, so its calls are never miscounted as direct. **(c)** Store the classification on the record, so it can be re-sorted when the register is refreshed (T11) rather than recomputed differently on every read. | Treat a number as direct just because the register does not know it — unrecognised must be its own outcome, counted and visible. |
 | R9 | As Legal, I want raw counterparty numbers reachable only by people who need them. | **(a)** Restrict raw counterparty numbers to named analytics roles. **(b)** Record who read them. | Expose raw counterparty numbers in any general-access dashboard or export (G1). |
 | R10 | As the PM, I want to switch the mandatory permission gate per app without an app release, so I can relax it when partners are being locked out and tighten it when coverage is too low to publish a comparison. | **(a)** When C-09 is ON for an app, a user who has denied the call-log permission cannot reach that app's signed-in experience, and is told what is blocked and how to grant it. **(b)** When C-09 is OFF for an app, a user who denies the permission reaches the full signed-in experience with every function working and nothing captured. **(c)** Apply a change to C-09 by that app's next open, with no app release. | **(a)** Block any app function when C-09 is OFF for that app. **(b)** Capture anything from a user who has denied permission, whatever C-09 says (G6). |
@@ -173,43 +175,23 @@ Lifecycle of a **call record** (created when a call ends on an instrumented devi
 
 ## 4. Screen Requirements
 
-**Experience intent:** a partner should finish the notice knowing exactly what leaves their phone and why, and should never wonder about it again.
+**Experience intent:** none — this feature has no partner-facing surface. Capture is silent apart from the Android permission dialog, which the OS owns and Wiom does not design. The only screen this spec defines is internal.
 
-**Master design file:** none — no bespoke design for this feature. Both notice screens reuse each app's existing permission-notice pattern; this section states what they must show and do (PM decision, OV-3). The screens themselves are still required: without the notice and the grant gate, R5 and G6 cannot hold.
+**Master design file:** none, and none required. No new partner-facing UI is built (OV-6).
 
-### Call-log notice & permission — CSP App
+### Android call-log permission dialog — both apps
 
-**States:** not yet asked (fresh install or upgrade, permission absent) · notice shown (before the Android dialog) · system dialog open · granted (capture live) · declined and blocked (C-09 ON for this app) · declined and usable (C-09 OFF for this app)
-**Freshness:** on open; the C-09 value is read at each open (R10c)
+Not a Wiom screen. The OS presents it when the app first requests the permission, and no capture is possible until the user allows it (R5a, G6). Wiom controls neither its wording nor its timing beyond choosing when to request. No explanation screen precedes it and none follows it (OV-6).
 
-| Element | Source / Routes to | Logic |
-|---|---|---|
-| Field — what is captured | R1a, R1b, R1c | Plain list: the other number, direction, connected or not, start time, duration, which SIM. Names that personal calls are included too. |
-| Field — why | §1 Objective | States the purpose is measuring Wiom's own call quality, and that it is not used to judge the partner (R7). |
-| Field — how long it is kept | C-06 | States the retention plainly. At the V1 default this must read as indefinite, not be left vague (OV-2). |
-| Field — who to contact | R5a | A named channel for questions or objections. |
-| Action — continue to permission | Android permission request | Enabled only after the notice is shown (R5a, G6). |
-| Check — declined, C-09 ON | T17 via §3a | The app does not proceed to the signed-in experience. Shows what is blocked and how to grant it (R10a). |
-| Check — declined, C-09 OFF | T18 via §3a | The app proceeds normally. Nothing is captured, and no function is withheld (R10b, R10 MUST NOT a). |
-| Check — permission revoked later | T13, T19 | Capture stops. If C-09 is ON, the app returns to this screen on next open; if OFF, it does not. |
-
-### Call-log notice & permission — Technician App
-
-**States:** not yet asked (fresh install or upgrade, permission absent) · notice shown · system dialog open · granted (capture live) · declined and blocked (C-09 ON for this app) · declined and usable (C-09 OFF for this app)
-**Freshness:** on open; the C-09 value is read at each open (R10c)
-
-Elements are the same as the CSP App screen above, deriving from the same ids (R1a, R1b, R1c, R5a, C-06, C-09, T13, T17, T18). C-09 is set independently per app, so this app can be permissive while the CSP App is gated. The Technician App holds no call-log permission today, so both the screen and the permission are new there.
-
-### Call-logging status — in app settings
-
-**States:** on (permission granted, delivery healthy) · on with backlog (queue above zero and ageing past C-01) · off (permission revoked)
-**Freshness:** on open
+**States:** not yet requested · dialog open · granted (capture live) · denied and blocked (C-09 ON for that app, T17) · denied and app usable (C-09 OFF for that app, T18)
+**Freshness:** the C-09 value is read at each app open (R10c)
 
 | Element | Source / Routes to | Logic |
 |---|---|---|
-| Field — status | T3 / T4 / T13 | On or off, in one word. |
-| Field — waiting count | T3, T5 | Shown only in the backlog state, so a partner on poor connectivity sees why. |
-| Action — re-read the notice | — | Reopens the notice content without re-requesting permission. |
+| Action — request the permission | Android permission request | Fired on first app open after install or upgrade. No preceding explanation (OV-6) |
+| Check — denied, C-09 ON | T17 via §3a | The app does not proceed to the signed-in experience. States which permission is required and how to grant it — a functional block message, not a purpose notice (R10a) |
+| Check — denied, C-09 OFF | T18 via §3a | The app proceeds normally. Nothing is captured and no function is withheld (R10b, R10 MUST NOT a) |
+| Check — revoked later | T13, T19 | Capture stops. If C-09 is ON, the app is blocked at next open; if OFF, it is not |
 
 ### IVR quality view — internal, PM and Ops
 
@@ -259,7 +241,7 @@ Elements are the same as the CSP App screen above, deriving from the same ids (R
 | MQ-3 | What share of captured calls reached the platform, how many are still waiting, and how old the oldest waiting record is, using the captured-at and received-at times on each record (R1f). A record delivered after C-01 still counts as delivered for M2, but is reported separately as late. | M2 · G5 · C-01 · C-04 |
 | MQ-4 | What share of delivered records name both the signed-in account and the SIM that carried the call — and how many calls were dropped for having no signed-in user. | M4 · G4 · C-07 · T2 |
 | MQ-5 | What share of signed-in users on instrumented apps have granted the permission, split by app. | G2 · R6a · C-05 |
-| MQ-6 | Whether captured call data has been analysed or exported for any purpose the notice does not name; whether any content-bearing field was ever stored, or any call recorded by Wiom; whether any call was captured before its user saw the notice and granted permission; whether any partner has seen another partner's data; and who has read raw counterparty numbers. | G1 invariant · G3 invariant · G6 · R7 · R9a · R9b |
+| MQ-6 | Whether captured call data has been read or exported by anyone outside the named analytics roles; whether any content-bearing field was ever stored, or any call recorded by Wiom; whether any call was captured before its permission was granted; whether any partner has seen another partner's data; and who has read raw counterparty numbers. | G1 invariant · G3 invariant · G6 · R7 · R9a · R9b |
 | MQ-7 | Whether the series is unbroken — records present for every day since launch, by app. | M2 · detects a repeat of the 7 Jul 2026 silent stop |
 | MQ-8 | How many users are blocked by the gate, by app — and how many denied the permission while the gate was off. | R10 · C-09 · C-05 · T17 · T18 · T19 |
 
@@ -335,19 +317,19 @@ Worked examples use: technician **Rohit Kumar** on partner account **WPA-4471**,
 
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
-| AC-GATE-1 | **Given** C-09 OFF for the Technician App, **When** Rohit is shown the notice on 20 Jul and denies the permission, **Then** he reaches the full signed-in experience and nothing is captured from his device. | R10b · T18 · G6 | Settled |
+| AC-GATE-1 | **Given** C-09 OFF for the Technician App, **When** Rohit denies the Android permission dialog on 20 Jul, **Then** he reaches the full signed-in experience and nothing is captured from his device. | R10b · T18 · G6 | Settled |
 | AC-GATE-2 | **Given** C-09 ON for the CSP App, **When** the Owner denies the permission, **Then** he cannot reach the signed-in experience, and the screen names what is blocked and how to grant it. | R10a · T17 | Settled |
 | AC-GATE-3 | **Given** Rohit has denied the permission with C-09 OFF and is using the app normally, **When** C-09 is switched ON for that app and he next opens it, **Then** he is blocked — with no app release having shipped. | R10c · T19 | Settled |
 | AC-GATE-4 | **Given** the Owner blocked under C-09 ON, **When** C-09 is switched OFF for that app and he next opens it, **Then** he reaches the full experience, and nothing is captured until he grants. | R10c · T20 · G6 | Settled |
 | AC-GATE-5 | **Given** C-09 OFF for the Technician App and Rohit having denied the permission, **When** he opens his task list, taps the Call CTA and completes an installation, **Then** every one of those functions works exactly as it does for a user who granted. | R10 MUST NOT a · T18 | Settled |
-| AC-GATE-6 | **Given** Rohit denied the permission at 09:00 and took three calls before granting it at 14:00, **When** his records are inspected, **Then** none of the three pre-grant calls is present, whatever C-09 is set to. | R10 MUST NOT b · G6 · R5b | Settled |
+| AC-GATE-6 | **Given** Rohit denied the permission at 09:00 and took three calls before granting it at 14:00, **When** his records are inspected, **Then** none of the three pre-grant calls is present, whatever C-09 is set to. | R10 MUST NOT b · G6 · R5a | Settled |
 | AC-GATE-7 | **Given** C-09 ON for the CSP App and OFF for the Technician App, **When** a user who has denied the permission opens each app, **Then** the CSP App blocks and the Technician App does not — the settings are independent. | R10a · R10b · C-09 | Settled |
 
 ### WF — Workflows
 
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
-| AC-WF-1 | **Given** Rohit installs the Technician App on 20 Jul, reads the notice and grants permission, **When** he then dials +91 98000 22222 from slot 1 and talks 96 seconds, **Then** within C-01 (15 min) a delivered record exists naming him, WPA-4471, the device and slot 1 — and within C-03 (24 h) it is classified as having gone direct. | R5 · R1 · R8a · T1 · T3 · T4 · T9 | Settled |
+| AC-WF-1 | **Given** Rohit installs the Technician App on 20 Jul and grants the Android permission, **When** he then dials +91 98000 22222 from slot 1 and talks 96 seconds, **Then** within C-01 (15 min) a delivered record exists naming him, WPA-4471, the device and slot 1 — and within C-03 (24 h) it is classified as having gone direct. | R5a · R1 · R8a · T1 · T3 · T4 · T9 | Settled |
 | AC-WF-2 | **Given** Rohit calls the customer through the in-app CTA on the Wiom IVR number and the call fails to bridge, **When** the record is classified, **Then** it shows as having gone through Wiom and as not connected — so the failure lands in the IVR connect rate rather than disappearing. | R8a · T8 · MQ-2 · M1 | Settled |
 | AC-WF-3 | **Given** Rohit's device offline all afternoon with the app killed, and four calls between 13:00 and 17:00, **When** the device reconnects and the app opens at 17:30, **Then** all four are captured once each and delivered, with none lost and none duplicated. | R3a · R4a · R4b · T5 · T7 · T7b · G5 | Settled |
 | AC-WF-4 | **Given** a month of delivered records at 84% permission coverage, **When** the IVR quality view is opened, **Then** it shows the IVR-versus-direct connect rates, states the 84% coverage beside them, and labels the bypass figure a floor naming the SIM-only limit — and the view carries no partner-level breakdown. | R6a · R6b · R7 MUST · G1 · G2 · MQ-2 · MQ-5 | Settled |
@@ -408,15 +390,15 @@ Worked examples use: technician **Rohit Kumar** on partner account **WPA-4471**,
 
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
-| AC-GRD-1 | **Given** per-user analysis is live, **When** the notice shown to Rohit before capture is read, **Then** it names per-user call analysis explicitly — so nothing is analysed that he was not told about. | G1 · R7b · R5a | Settled |
-| AC-GRD-2 | **Given** a month of per-user analysis, **When** MQ-6 is evaluated, **Then** every analysis and export maps to a purpose the notice names, and the count of partners who saw another partner's data is zero. | G1 invariant · R7 MUST NOT a · R7 MUST NOT b · MQ-6 | Settled |
+| AC-GRD-1 | **Given** a month of delivered records, **When** every dashboard, export and report is inspected, **Then** captured call data appears only in surfaces restricted to the named analytics roles. | G1 · R7 MUST NOT a · R9a | Settled |
+| AC-GRD-2 | **Given** a month of per-user analysis, **When** MQ-6 is evaluated, **Then** the count of reads by anyone outside the named analytics roles is zero, and the count of partners who saw another partner's data is zero. | G1 invariant · R7 MUST NOT a · R7 MUST NOT b · MQ-6 | Settled |
 | AC-GRD-3 | **Given** any published IVR-versus-direct comparison, **When** it is inspected, **Then** it carries its permission coverage and its SIM-only limit, and no bypass figure is stated as a total. | G2 · R6a · R6b | Settled |
 | AC-GRD-4 | **Given** every delivered record for a month, **When** they are inspected, **Then** none holds audio, transcription, message content or images, and every stored field maps to a row in Appendix A. | G3 invariant · R1 MUST NOT a · MQ-6 | Settled |
 | AC-GRD-5 | **Given** every delivered record for a month, **When** they are inspected, **Then** each names a signed-in account and a device. | G4 · R2a · MQ-4 | Settled |
-| AC-GRD-6 | **Given** a fresh install with the notice not yet shown, **When** a call ends, **Then** nothing is captured and no permission has been requested. | G6 · R5a · R5b · R5 MUST NOT | Settled |
+| AC-GRD-6 | **Given** a fresh install where the permission has not yet been granted, **When** a call ends, **Then** nothing has been read from the device call log. | G6 · R5a · R5 MUST NOT | Settled |
 | AC-GRD-7 | **Given** raw counterparty numbers in the platform, **When** a user outside the named analytics roles opens any dashboard or export, **Then** no raw counterparty number is visible. | R9a · R9 MUST NOT · G1 | Settled |
-| AC-GRD-9 | **Given** a month of delivered records for partner account WPA-4471, **When** an analyst in a named role asks how many of Rohit's calls went outside a Wiom number, **Then** the answer is available keyed on his account, his role and his partner account. | R7a · G1 · MQ-1 | Settled |
 | AC-GRD-8 | **Given** an analyst in a named role, **When** they read raw counterparty numbers on 22 Jul, **Then** that read is recorded and is retrievable through MQ-6. | R9b · MQ-6 · G1 | Settled |
+| AC-GRD-9 | **Given** a month of delivered records for partner account WPA-4471, **When** an analyst in a named role asks how many of Rohit's calls went outside a Wiom number, **Then** the answer is available keyed on his account, his role and his partner account. | R7a · G1 · MQ-1 | Settled |
 
 ---
 
@@ -435,7 +417,7 @@ Worked examples use: technician **Rohit Kumar** on partner account **WPA-4471**,
 | Wiom number register | The list of Wiom-owned phone numbers used to classify calls. Must reflect a newly provisioned number within C-08, or its calls are miscounted as direct (R8b). | Engineering |
 | Permission coverage | The share of signed-in users on instrumented apps who have granted the call-log permission. Published beside every comparison (R6a). | — |
 | The predecessor | The call-log pipeline in the legacy partner app. Ran from before Aug 2025, peaked above 4M records a month, declined as partners moved to the new apps, and stopped on 7 Jul 2026. Not revived (§1 Boundary). | — |
-| DPDP | India's Digital Personal Data Protection Act, 2023. Governs notice, consent, purpose limitation and retention for this feature. | Legal |
+| DPDP | India's Digital Personal Data Protection Act, 2023. Governs notice, consent, purpose limitation and retention for personal data. This spec gives no notice and seeks no consent beyond the OS permission grant — see OV-6. | Legal |
 | Enhanced Confirmation Mode | Android 15's block on granting certain sensitive permissions to apps installed outside an app store. It does not cover the call-log permission today, but Google has said the list may grow — a standing risk to this feature, since both apps install by internal link. | — |
 
 ---
@@ -450,12 +432,12 @@ What the platform must be able to do for this feature to exist. Whether these ar
 | Attach the signed-in account, its role, its partner account and the device to a record at capture, and keep that attachment through sign-out and user switch. | R1c · R2a · R2b · T1 · T12 · G4 |
 | Hold records on the device until receipt is confirmed, and never discard one to recover from a failure or to make room. | R3a · R3 MUST NOT · T3 · T5 · T6 · C-01 · C-04 · G5 |
 | Capture calls that happened while the app was closed or killed, reaching back C-02, and recognise an entry it already holds so nothing is double-counted. | R4a · R4b · T7 · T7b · C-02 |
-| Show a purpose notice and gate all capture behind an explicit grant, on both apps. | R5a · R5b · T13 · G6 |
+| Gate all capture behind the Android permission grant, on both apps. | R5a · T13 · G6 |
 | Switch the mandatory permission gate per app at runtime, taking effect by that app's next open, with no app release — and block or restore access to the signed-in experience accordingly. | R10a · R10b · R10c · C-09 · T17 · T18 · T19 · T20 · MQ-8 |
 | Keep a register of Wiom-owned numbers, classify each delivered record against it within C-03, reflect a new number within C-08, and hold unclassifiable records as their own outcome. | R8a · R8b · R8 MUST NOT · T8 · T9 · T10 · T11 · C-03 · C-08 |
 | Report connect rates by channel for the same device population and period, always alongside permission coverage. | R6a · R6b · MQ-1 · MQ-2 · MQ-5 · M1 · M3 · G2 |
 | Report delivery completeness, queue age and daily series continuity. | MQ-3 · MQ-7 · M2 · G5 |
-| Analyse call behaviour for a named user, restrict raw counterparty numbers to named roles, log reads, and keep one partner's data invisible to another. | R7a · R7 MUST NOT b · R9 · MQ-6 · G1 |
+| Analyse call behaviour for a named user, restrict all captured data to named analytics roles, log reads of raw numbers, and keep one partner's data invisible to another. | R7a · R7 MUST NOT b · R9 · MQ-6 · G1 |
 | Delete records once a finite retention period is configured. | T15 · C-06 |
 
 ---
@@ -520,6 +502,7 @@ Every field a record carries. Template v3 keeps attribute tables out of §8 beca
 |---|---|---|---|
 | **OV-1** — §1 must state a customer outcome | §1 states an internal-capability outcome: Wiom's ability to measure IVR call quality. | No customer's experience changes when this ships. Two customer-outcome framings were offered (keeping the masking promise; customers actually getting reached) and both were declined in favour of an honest internal objective. | Ashish Raj (PM), 28 Jul 2026 |
 | **OV-2** — consent and retention posture | Retention is indefinite by default (C-06). A mandatory permission gate exists per app (C-09) which, when ON, blocks the signed-in experience on denial — but it **defaults OFF**, so the launch posture is voluntary consent with a reversible lever. | PM decision, taken with the tradeoffs on the table. Recorded because the combination — indefinite retention, personal calls included, distribution outside an app store — is high-exposure under DPDP. G1, G3 and R7 are the compensating controls. **v1.1 note:** v1.0 hard-wired the gate ON; making it a runtime switch that ships OFF is strictly less restrictive on consent and materially reduces the exposure Legal reviewed. Indefinite retention is now the highest-exposure element and is unchanged. Legal signed off the stricter v1.0 posture; re-confirmation on the v1.1 change is a courtesy, not a blocker. | Ashish Raj (PM), 28 Jul 2026 · Legal signed off v1.0 28 Jul 2026 |
-| **OV-4** — §8 excludes attribute tables; §7 ACs are the only place for concrete detail | Added **Appendix A**, a 38-row field inventory in two availability tiers. | Engineering asked what to populate and prose could not answer it precisely — R1's obligations name categories, not the ~38 columns the Android call log actually exposes. The appendix states what and why only; types, nullability and column naming stay the implementer's, so the template's intent (no schema design in the PRD) still holds. | Ashish Raj (PM), 28 Jul 2026 |
-| **OV-5** — per-user analysis reverses v1.2 | G1 changed from purpose limitation to disclosed purpose; R7 inverted from "not used to judge me" to permitting named-user analysis; AC-GRD-1 and AC-GRD-2 rewritten. | PM decision. Bypass patterns cannot be traced to where they happen from aggregates alone. The compensating control moved from *forbidding* per-user use to *disclosing* it: R7b requires the notice to name per-user analysis before capture, and R7 MUST NOT b keeps one partner's data invisible to another. **Legal signed off a purpose-limited design at v1.0; this is a wider purpose and needs fresh review.** | Ashish Raj (PM), 28 Jul 2026 · **Legal re-review outstanding** |
 | **OV-3** — no TBD and no unconfirmed values at sign-off | Signed off carrying three TBD consulted names, and with the C-01 to C-08 defaults delegated to Engineering as provisional. Ranges and owners in §5 are fixed; the defaults inside those ranges are Engineering's to set at build and may change without a PRD revision. | PM chose to sign rather than hold the document for names and for numbers that Engineering is better placed to set. The ranges — which are the product-relevant part — are settled, so no obligation in §2, §3b or §7 depends on an unconfirmed default. No bespoke design is commissioned; the notice screens reuse existing app patterns. | Ashish Raj (PM), 28 Jul 2026 · Reviewer: Saurabh Goyal |
+| **OV-4** — §8 excludes attribute tables; §7 ACs are the only place for concrete detail | Added **Appendix A**, a 38-row field inventory in two availability tiers. | Engineering asked what to populate and prose could not answer it precisely — R1's obligations name categories, not the ~38 columns the Android call log actually exposes. The appendix states what and why only; types, nullability and column naming stay the implementer's, so the template's intent (no schema design in the PRD) still holds. | Ashish Raj (PM), 28 Jul 2026 |
+| **OV-5** — per-user analysis reverses v1.2 | G1 changed from purpose limitation to disclosed purpose; R7 inverted from "not used to judge me" to permitting named-user analysis; AC-GRD-1 and AC-GRD-2 rewritten. | PM decision. Bypass patterns cannot be traced to where they happen from aggregates alone. At v1.3 the compensating control moved from *forbidding* per-user use to *disclosing* it. **Superseded in part by OV-6**, which removed the disclosure: R7b no longer exists, and the remaining controls are technical only — restricted access (G1, R9) and one partner never seeing another's data (R7 MUST NOT b). **Legal signed off a purpose-limited design at v1.0; this is a wider purpose and needs fresh review.** | Ashish Raj (PM), 28 Jul 2026 · **Legal re-review outstanding** |
+| **OV-6** — no notice, and G1 loses its disclosure basis | No purpose notice is shown anywhere: no screen, no privacy-policy statement, no in-app disclosure. R5 keeps only the permission-grant gate, G6 becomes "no capture without grant", G1 is rewritten to *internal use, restricted access*, and R7b is deleted. | PM decision: "this is simply a logging spec." Taken against a stated warning, twice. The document must be read with three facts held together: capture covers **all** calls on the phone including personal ones, retention is **indefinite** (C-06), and analysis is permitted at **named-user** level (R7a) — with **no disclosure to the person whose calls they are**. The compensating controls are now only technical: G1's access restriction, G3's content prohibition, and R9's read logging. Android still shows its own permission dialog, so the user learns that call-log access was requested, but is told nothing of purpose, retention or per-user analysis. **Legal signed off a design that contained the notice; that basis no longer holds and a fresh review is outstanding.** | Ashish Raj (PM), 31 Jul 2026 · **Legal re-review outstanding** |
