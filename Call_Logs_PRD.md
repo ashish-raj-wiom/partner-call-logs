@@ -61,7 +61,7 @@ It leaves unchanged:
 - **SIM calls only.** Android's call log holds SIM calls. WhatsApp and other app-to-app calls never enter it, so they cannot be captured. Every bypass figure this feature produces is therefore a **floor, never a total** (M3). The obvious workaround — reading notifications — is blocked by Android 15's Enhanced Confirmation Mode on apps installed outside an app store, which is how both apps ship.
 - **The signed-in account is not the human.** Wiom already knows partner staff share logins — a technician working on the Owner's account is common. Records name the account, not the person (see Glossary, R2).
 - **Times come from the phone.** Start times are the device's own, so a device with a wrong clock or time zone produces wrong times. Records carry what the device reported; the platform does not correct them.
-- **A cleared call log is gone.** If a user deletes call-log entries before the catch-up scan reads them, those calls cannot be captured and their loss cannot be counted (T16). This is unmeasurable, not merely unmeasured.
+- **A cleared call log is gone.** If a user deletes call-log entries before a capture pass reads them, those calls cannot be captured and their loss cannot be counted (T16). This is unmeasurable, not merely unmeasured.
 - **Records are kept indefinitely.** No purge is specified. If retention ever has to become finite, that is a new requirement, not a parameter change (OV-9).
 
 ### Guardrails — promises that hold on every path
@@ -93,9 +93,9 @@ G2, G3 and G6 were retired at v1.5 (OV-8). Their ids are not reused, so every su
 | ID | Story | MUST | MUST NOT |
 |---|---|---|---|
 | R1 | As the PM accountable for IVR quality, I want every SIM call on an instrumented device recorded in enough detail to classify and compare it, so I can judge the IVR against ordinary dialling. | **(a)** For every call that appears in the device's call log, record the counterparty number, the direction, the outcome — connected, no answer, rejected or blocked — when it started and how long it lasted. The outcome must be granular enough to compare with the IVR's own dispositions, so a refused call is never conflated with an unheard one. **(b)** Record which of the user's own SIMs carried the call — including on dual-SIM devices, where the predecessor left this blank on most records. **(c)** Record the signed-in account, its role, its partner account and the device. **(d)** Record something that identifies the call-log entry the record came from, so the same call is recognisable across repeat scans, across both apps, and across re-sends. **(e)** Record which app produced the record. **(f)** Record when the call was captured and when the platform received it. **(g)** Record every Tier 1 and Tier 2 field in Appendix A, including the handset model, manufacturer, OS version and app version. Where a Tier 2 field is absent on that device or Android version, record its absence rather than dropping the field silently. | **(a)** Record call audio, voicemail transcription, message content or images (R1 MUST NOT a). **(b)** Store a field Wiom derived by any means other than reading the device's call log, SIM registry or its own session state — nothing is inferred and presented as observed. |
-| R2 | As an analyst, I want every record tied to a known account, so a record I cannot attribute never pollutes a rate. | **(a)** Store the signed-in account and device on every record. **(b)** Keep the attribution the call was captured with, even if the user later signs out or another user signs in. | **(a)** Store a call that happened while nobody was signed in. **(b)** Re-attribute an already-captured call to a different account. |
+| R2 | As an analyst, I want every record tied to the account that was actually using the phone for that call, so a record I cannot attribute never pollutes a rate. | **(a)** Store the account that was signed in **when the call happened** — not whoever is signed in when the record is formed — together with the device. **(b)** Keep that attribution afterwards, even if the user signs out or another user signs in. | **(a)** Store a call that happened while nobody was signed in. **(b)** Re-attribute an already-captured call to a different account. |
 | R3 | As an analyst, I want no call quietly lost, because a rate computed on an unknown denominator is worse than no rate. | **(a)** Hold a captured call on the device until the platform confirms it has it. **(b)** Deliver as soon as the device has a working connection. | **(a)** Discard a captured call because delivery failed. **(b)** Discard a captured call to make room when the device queue is full — pause capture and raise a health signal instead (G5). |
-| R4 | As an analyst, I want calls that happen while the app is closed or killed, because Indian devices routinely kill background apps and those calls are not a random sample. | **(a)** When the app opens or permission is granted, capture any call in the device log that the platform does not already have. **(b)** Capture each call once — however many times it is scanned, and whichever instrumented app scans it, including when both apps sit on the same phone. | Depend on the app being awake when the call happens. |
+| R4 | As an analyst, I want every call the device still holds, whether or not the app was running when it happened, because Indian devices routinely kill background apps and those calls are not a random sample. | **(a)** Capture any call the device call log still holds that the platform does not already have. **(b)** Capture each call once — however many passes read it, and whichever instrumented app reads it, including when both apps sit on the same phone. | Depend on the app being awake when the call happens, or on capture happening at any particular moment. |
 | R5 | As the platform owner, I want capture gated strictly on the Android permission grant, so nothing is read before the OS allows it. | **(a)** Capture nothing until the call-log permission is granted. | Read the device call log, or any part of it, before the grant (R5a). |
 | R7 | As the PM, I want to analyse call behaviour for a named user — how much they call, and how much of it bypasses the IVR — so a bypass pattern can be traced to where it happens rather than only counted. | **(a)** Allow analysis at named-user level, keyed on the signed-in account, its role and its partner account. | Expose captured call data outside Wiom. |
 | R10 | As the PM, I want to switch the mandatory permission gate per app without an app release, so I can relax it when partners are being locked out and tighten it when coverage is too low to publish a comparison. | **(a)** When C-09 is ON for an app, a user who has denied the call-log permission cannot reach that app's signed-in experience, and is told what is blocked and how to grant it. **(b)** When C-09 is OFF for an app, a user who denies the permission reaches the full signed-in experience with every function working and nothing captured. **(c)** Apply a change to C-09 by that app's next open, with no app release. | **(a)** Block any app function when C-09 is OFF for that app. **(b)** Capture anything from a user who has denied permission, whatever C-09 says (R5a). |
@@ -125,8 +125,8 @@ flowchart TD
     I --> M{"Device queue at its cap?"}
     M -- "Yes" --> N["T6 — capture paused, nothing discarded"]
 
-    O["App opened, or permission just granted"] --> P{"Call log holds entries the platform lacks?"}
-    P -- "Yes" --> Q["T7 — captured by catch-up scan"]
+    O["A capture pass runs"] --> P{"Call log holds entries the platform lacks?"}
+    P -- "Yes" --> Q["T7 — captured"]
     P -- "No" --> R["Nothing to do"]
 
     AA["User signs out, or another user signs in"] --> AB["T12 — attribution preserved, nothing deleted"]
@@ -141,7 +141,7 @@ flowchart TD
 
 **Precedence:**
 
-- **P1 — Capture once.** A call that ends while a catch-up scan is running is captured once. The device call-log entry decides identity, not which path reached it first (AC-RACE-1).
+- **P1 — Capture once.** A call that ends while a capture pass is running is captured once. The device call-log entry decides identity, not which pass reached it first (AC-RACE-1).
 - **P2 — Revocation wins.** If permission is revoked at the same moment a call ends, treat it as revoked and capture nothing (AC-RACE-2).
 - **P3 — Attribution follows the start.** If a user signs out at the same moment a call ends, the record keeps the account that was signed in when the call **started** (AC-RACE-3, R2b).
 - **P4 — The gate is read at open.** If C-09 is switched at the same moment a user denies permission, the value in force at that app's **next open** decides whether they are blocked (AC-RACE-4, R10c).
@@ -160,10 +160,10 @@ Lifecycle of a **call record** (created when a call ends on an instrumented devi
 | T4 | Waiting | Platform confirms receipt | — | Delivered | Record available for analysis; device copy may be released (R3a satisfied). |
 | T5 | Waiting | Delivery not yet confirmed | — | Waiting | Record stays on the device — never discarded (G5, R3 MUST NOT a). A health signal is raised so the loss risk is visible. How long delivery is retried, and with what backoff, is the implementer's. |
 | T6 | Waiting | Device queue reaches the implementer's cap | — | Waiting *(capture paused)* | New captures pause and a health signal is raised. No queued record is discarded (R3 MUST NOT b). Capture resumes once the queue drains. |
-| T7 | — | App opens, or permission is granted | Device call log holds an entry that the platform does not hold | Captured | Catch-up capture (R4a). Fields as T1. |
-| T7b | — | A scan or a call-end meets an entry the platform already holds | — | *no new record* | Suppressed; the call stays counted once (R4b). |
+| T7 | — | A capture pass runs | Device call log holds an entry that the platform does not hold | Captured | Catch-up capture (R4a). Fields as T1. |
+| T7b | — | A capture pass meets an entry the platform already holds | — | *no new record* | Suppressed; the call stays counted once (R4b). Every pass re-reads what the device still holds, so suppression is the normal path, not an edge case. |
 | T12 | Captured / Waiting | User signs out, or another user signs in | — | unchanged | Attribution is preserved exactly (R2b); records are neither deleted nor re-attributed (R2 MUST NOT b). The predecessor deleted them here — that must not recur. |
-| T13 | Any | Permission revoked in Android settings | — | Capture stopped; queued records unchanged | No new capture (R5a). Records already captured under valid permission are still delivered. If C-09 is ON for that app, access is also blocked at the next open (T19 applies). |
+| T13 | Any | Permission revoked in Android settings | — | Capture stopped; queued records unchanged | No new capture (R5a). Records already captured are still delivered. Calls the device still holds that no pass has read are **lost** — after revocation the log cannot be read, and like T16 the loss cannot be counted. If C-09 is ON for that app, access is also blocked at the next open (T19 applies). |
 | T14 | Waiting | App uninstalled | — | *lost* | Undeliverable records are lost. Accepted and stated, not silently absorbed: the loss shows in MQ-3. |
 | T16 | — | User clears device call-log entries before a scan reads them | — | *no record* | Those calls are never captured. Unlike T14 the loss cannot be counted, because nothing remains to compare against (§1 Hard limits). No error is raised. |
 | T17 | — | User denies the call-log permission | C-09 is ON for that app | *no record; access blocked* | The user cannot reach the signed-in experience. The screen names what is blocked and how to grant it (R10a). Nothing captured (R5a). Counted in MQ-8. |
@@ -243,13 +243,13 @@ Worked examples use: technician **Rohit Kumar** on partner account **WPA-4471**,
 
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
-| AC-CAP-1 | **Given** Rohit signed in on the Technician App with permission granted, **When** he dials +91 98000 22222 from slot 1 at 11:04 and talks for 96 seconds, **Then** one record exists showing counterparty +91 98000 22222, direction outgoing, connected, start 11:04 and duration 96s. | R1a · T1 | Settled |
+| AC-CAP-1 | **Given** Rohit signed in on the Technician App with permission granted, **When** he dials +91 98000 22222 from slot 1 at 11:04 and talks for 96 seconds, **Then** the record for that call shows counterparty +91 98000 22222, direction outgoing, connected, start 11:04 and duration 96s. | R1a · T1 | Settled |
 | AC-CAP-2 | **Given** the same call, **When** the record is inspected, **Then** it names slot 1 / +91 90000 11111 as the SIM that carried it — not blank, even though the device has two active SIMs. | R1b · T1 | Settled |
 | AC-CAP-3 | **Given** the same call, **When** the record is inspected, **Then** it names Rohit's account, his role, partner account WPA-4471 and the device. | R1c · T1 · G4 | Settled |
 | AC-CAP-4 | **Given** the same call, **When** the stored record is inspected in full, **Then** it holds no audio, no voicemail transcription, no message content and no images. | R1 MUST NOT a | Settled |
-| AC-CAP-5 | **Given** an incoming call from +91 98000 22222 that Rohit does not answer at 11:20, **When** it ends, **Then** a record exists showing direction incoming and outcome **no answer** — not merely "did not connect". | R1a · T1 | Settled |
-| AC-CAP-6 | **Given** permission granted but nobody signed in on the device, **When** a call to +91 98000 22222 ends at 12:00, **Then** no record is stored, and the call raises the unattributed tally for MQ-4 only. | R2 MUST NOT a · T2 · MQ-4 | Settled |
-| AC-CAP-7 | **Given** an incoming call from +91 98000 22222 that Rohit actively declines at 11:25, **When** it ends, **Then** the record shows outcome **rejected**, distinguishable from the no-answer record in AC-CAP-5. | R1a · T1 · MQ-2 | Settled |
+| AC-CAP-5 | **Given** an incoming call from +91 98000 22222 that Rohit does not answer at 11:20, **When** the record for that call is inspected, **Then** it shows direction incoming and outcome **no answer** — not merely "did not connect". | R1a · T1 | Settled |
+| AC-CAP-6 | **Given** nobody was signed in on the device when a call to +91 98000 22222 ended at 12:00, **When** a capture pass later reads that entry, **Then** no record is stored for it, and it raises the unattributed tally for MQ-4 only. | R2 MUST NOT a · T2 · MQ-4 | Settled |
+| AC-CAP-7 | **Given** an incoming call from +91 98000 22222 that Rohit actively declines at 11:25, **When** the record for that call is inspected, **Then** it shows outcome **rejected**, distinguishable from the no-answer record in AC-CAP-5. | R1a · T1 · MQ-2 | Settled |
 | AC-CAP-8 | **Given** the AC-CAP-1 record, **When** it is inspected, **Then** it carries the identity of the call-log entry it came from, which app produced it, and both the captured-at and received-at times. | R1d · R1e · R1f · T1 | Settled |
 | AC-CAP-9 | **Given** the AC-CAP-1 record on a Redmi 12 running Android 13, **When** it is inspected, **Then** all 26 Appendix A Tier 1 fields are present — including the SIM's own number taken from the call log, the handset model, manufacturer, Android version and app version. | R1g | Settled |
 | AC-CAP-10 | **Given** the same record on Android 13, **When** its Tier 2 fields are inspected, **Then** the missed reason — Android 12+, so available here — is present, and any Tier 2 field the handset does not supply is recorded as absent rather than left out of the record. | R1g · T1 | Settled |
@@ -260,20 +260,20 @@ Worked examples use: technician **Rohit Kumar** on partner account **WPA-4471**,
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
 | AC-QUE-1 | **Given** the AC-CAP-1 record captured at 11:04 with the device online, **When** delivery is attempted, **Then** the platform confirms receipt and the record is delivered. | R3b · T4 | Settled |
-| AC-QUE-2 | **Given** the same record captured while the device is offline, **When** it is still unconfirmed at 11:19, **Then** it is still present on the device and has not been discarded. | R3a · T3 · G5 | Settled |
+| AC-QUE-2 | **Given** the same record captured while the device is offline, **When** it is still unconfirmed, **Then** it is still present on the device and has not been discarded. | R3a · T3 · G5 | Settled |
 | AC-QUE-3 | **Given** the same record still unconfirmed after repeated attempts, **When** the device is inspected, **Then** a health signal has been raised and the record is still present. | T5 · G5 | Settled |
-| AC-QUE-4 | **Given** a device whose waiting queue has reached its cap, **When** a further call ends at 14:00, **Then** capture pauses, a health signal is raised, and no waiting record is discarded. | R3 MUST NOT b · T6 | Settled |
+| AC-QUE-4 | **Given** a device whose waiting queue has reached its cap, **When** the next capture pass runs, **Then** capture pauses, a health signal is raised, and no waiting record is discarded. | R3 MUST NOT b · T6 | Settled |
 | AC-QUE-5 | **Given** the paused device from AC-QUE-4, **When** delivery drains the queue below the cap, **Then** capture resumes. | T6 | Settled |
 
 ### BAK — Catch-up capture (T7, T7b)
 
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
-| AC-BAK-1 | **Given** the Technician App killed by the OS at 09:00 and Rohit taking three calls between 09:00 and 13:00, **When** he opens the app at 13:05, **Then** all three calls are captured. | R4a · T7 | Settled |
-| AC-BAK-2 | **Given** those three calls already delivered, **When** the app opens again at 15:00 and scans, **Then** no duplicate record is created and each call remains counted once. | R4b · T7b | Settled |
-| AC-BAK-3 | **Given** Rohit grants permission for the first time on 20 Jul, **When** the first scan runs, **Then** every call the device call log still holds is captured. | R4a · T7 | Settled |
-| AC-BAK-4 | **Given** the app has never been opened while a call happened, **When** the catch-up scan runs, **Then** those calls are captured — capture does not depend on the app being awake at call time. | R4 MUST NOT · T7 | Settled |
-| AC-BAK-5 | **Given** Rohit takes two calls at 10:00 and 10:30 and deletes both from his phone's call log at 10:45, **When** the app opens at 11:00 and scans, **Then** neither call is captured, no error is raised, and no loss is reported — the gap is unmeasurable. | T16 · §1 Hard limits | Settled |
+| AC-BAK-1 | **Given** the Technician App killed by the OS at 09:00 and Rohit taking three calls between 09:00 and 13:00, **When** the next capture pass runs, **Then** all three calls are captured. | R4a · T7 | Settled |
+| AC-BAK-2 | **Given** those three calls already delivered, **When** a later capture pass reads the same three call-log entries again, **Then** no duplicate record is created and each call remains counted once. | R4b · T7b | Settled |
+| AC-BAK-3 | **Given** Rohit grants permission for the first time on 20 Jul, **When** the first capture pass runs, **Then** every call the device call log still holds is captured. | R4a · T7 | Settled |
+| AC-BAK-4 | **Given** the app was never open while a call happened, **When** a capture pass runs, **Then** those calls are captured — capture does not depend on the app being awake at call time. | R4 MUST NOT · T7 | Settled |
+| AC-BAK-5 | **Given** Rohit takes two calls at 10:00 and 10:30 and deletes both from his phone's call log at 10:45, **When** the next capture pass runs, **Then** neither call is captured, no error is raised, and no loss is reported — the gap is unmeasurable. | T16 · §1 Hard limits | Settled |
 
 
 | AC | Given / When / Then | Verifies | Status |
@@ -287,6 +287,8 @@ Worked examples use: technician **Rohit Kumar** on partner account **WPA-4471**,
 | AC-ATT-2 | **Given** the same waiting record, **When** a different user signs in on that device at 11:12, **Then** the record is still attributed to Rohit and is not re-attributed to the new user. | R2 MUST NOT b · T12 | Settled |
 | AC-ATT-3 | **Given** permission granted and records waiting, **When** Rohit revokes the call-log permission in Android settings at 16:00, **Then** no call after 16:00 is captured, and the records already captured are still delivered. | T13 · R5a | Settled |
 | AC-ATT-4 | **Given** 12 records waiting on the device, **When** the app is uninstalled, **Then** those 12 are lost and the loss is visible in MQ-3 rather than absorbed silently. | T14 · MQ-3 · G5 | Settled |
+| AC-ATT-5 | **Given** a call at 11:04 on 20 Jul made while Rohit was signed in, **When** he signs out at 18:00 and a different user is signed in by the time a capture pass reads that entry, **Then** the record is attributed to **Rohit** — the account signed in when the call happened — and not to the user signed in when it was read. | R2a · R2 MUST NOT b · T12 | Settled |
+| AC-ATT-6 | **Given** Rohit takes three calls between 09:00 and 15:00 that no capture pass has yet read, **When** he revokes the call-log permission at 16:00, **Then** those three calls are never captured, and the shortfall is not reported as three calls that did not happen. | T13 · R5a | Settled |
 
 
 | AC | Given / When / Then | Verifies | Status |
@@ -309,15 +311,15 @@ Worked examples use: technician **Rohit Kumar** on partner account **WPA-4471**,
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
 | AC-WF-1 | **Given** Rohit installs the Technician App on 20 Jul and grants the Android permission, **When** he dials +91 98000 22222 from slot 1 and talks 96 seconds, **Then** a delivered record exists naming him, WPA-4471, the device and slot 1, and it is available for analysis. | R5a · R1 · T1 · T3 · T4 | Settled |
-| AC-WF-3 | **Given** Rohit's device offline all afternoon with the app killed, and four calls between 13:00 and 17:00, **When** the device reconnects and the app opens at 17:30, **Then** all four are captured once each and delivered, with none lost and none duplicated. | R3a · R4a · R4b · T5 · T7 · T7b · G5 | Settled |
+| AC-WF-3 | **Given** Rohit's device offline all afternoon with the app killed, and four calls between 13:00 and 17:00, **When** the device reconnects and the next capture pass runs, **Then** all four are captured once each and delivered, with none lost and none duplicated. | R3a · R4a · R4b · T5 · T7 · T7b · G5 | Settled |
 
 ### FAIL — Failure windows
 
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
 | AC-FAIL-1 | **Given** a captured record and a platform returning errors to every delivery attempt, **When** the device is inspected, **Then** the record is still there, a health signal has been raised, and nothing has been deleted — the predecessor's behaviour of clearing the queue on failure must not recur. | R3 MUST NOT a · T5 · G5 | Settled |
-| AC-FAIL-2 | **Given** the same errors continuing until the waiting queue reaches its cap, **When** the next call ends, **Then** capture pauses with a health signal and no record is dropped to make room. | R3 MUST NOT b · T6 · G5 | Settled |
-| AC-FAIL-3 | **Given** no records delivered from either app for a full day, **When** MQ-7 is evaluated, **Then** the break is reported that day — not discovered weeks later as the 7 Jul 2026 stop was. | MQ-7 · M2 | Settled |
+| AC-FAIL-2 | **Given** the same errors continuing until the waiting queue reaches its cap, **When** the next capture pass runs, **Then** capture pauses with a health signal and no record is dropped to make room. | R3 MUST NOT b · T6 · G5 | Settled |
+| AC-FAIL-3 | **Given** no records delivered from either app for materially longer than the expected gap between capture passes, **When** MQ-7 is evaluated, **Then** the break is reported — not discovered weeks later, as the 7 Jul 2026 stop was. | MQ-7 · M2 | Settled |
 
 ### REG — Regression (§1 Boundary)
 
@@ -332,7 +334,7 @@ Worked examples use: technician **Rohit Kumar** on partner account **WPA-4471**,
 
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
-| AC-RACE-1 | **Given** a catch-up scan running at 13:05, **When** a call ends at 13:05 during that scan, **Then** exactly one record exists for it. | P1 · T7b · R4b · R1d | Settled |
+| AC-RACE-1 | **Given** a capture pass running at 13:05, **When** a call ends at 13:05 during that pass, **Then** exactly one record exists for it. | P1 · T7b · R4b · R1d | Settled |
 | AC-RACE-2 | **Given** Rohit revoking permission at 16:00:00, **When** a call ends at 16:00:00, **Then** nothing is captured. | P2 · T13 · R5a | Settled |
 | AC-RACE-3 | **Given** a call starting at 11:04 under Rohit's session, **When** he signs out at 11:06 as the call ends, **Then** the record is attributed to Rohit. | P3 · R2b · T12 | Settled |
 | AC-RACE-4 | **Given** Rohit denying the permission at 16:00:00 as C-09 is switched ON for his app at 16:00:00, **When** he next opens the app, **Then** he is blocked — the value in force at that open decides. | P4 · R10c · T19 | Settled |
@@ -345,7 +347,7 @@ Worked examples use: technician **Rohit Kumar** on partner account **WPA-4471**,
 
 | AC | Given / When / Then | Verifies | Status |
 |---|---|---|---|
-| AC-DUP-1 | **Given** a delivered record, **When** the same call-log entry is scanned five more times across five app opens, **Then** it stays counted exactly once. | R4b · T7b | Settled |
+| AC-DUP-1 | **Given** a delivered record, **When** the same call-log entry is read by five further capture passes, **Then** it stays counted exactly once. | R4b · T7b | Settled |
 | AC-DUP-2 | **Given** a delivery confirmed once, **When** the device re-sends the same record after a connection blip, **Then** the platform still holds exactly one copy. | R4b · T4 | Settled |
 | AC-DUP-3 | **Given** one phone running both the CSP App and the Technician App, both signed in and both permitted, **When** a call to +91 98000 22222 ends at 11:04, **Then** the platform holds exactly one record for it, not one per app. | R4b · R1d · R1e · T7b | Settled |
 
