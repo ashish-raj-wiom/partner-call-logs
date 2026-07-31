@@ -15,6 +15,22 @@
 
 ---
 
+## Quick Check
+
+Seven-line triage. Reflects the body below; if it disagrees, the body wins. Not a Template v3 section — see **OV-7**.
+
+| Question | Answer |
+|---|---|
+| What problem? | Wiom cannot say how many partner↔customer calls bypass the IVR, or how well the IVR connects compared with ordinary dialling. A device-side call-log pipeline used to exist in the legacy partner app; it decayed as partners migrated and stopped entirely on **7 Jul 2026**. Neither new app declares the permission. |
+| Primary owner? | Cross-cutting measurement capability. Instrumented surfaces: CSP App (`com.wiom.csp`) and Technician App. |
+| Customer outcome? | None — this is an internal-capability PRD. Recorded as **OV-1**. |
+| Money flow change? | No. |
+| Migration needed? | No app migration. The series restarts on the new apps; the legacy app is not revived. Continuity of a comparable series is a product requirement (M2, MQ-7). |
+| PII processed? | Yes, and materially new — metadata for **all** calls on a partner's phone, personal calls included, counterparty numbers in the clear, plus whether the customer is saved in their phonebook. Retention is indefinite by default (C-06). Analysis is permitted at named-user level, and **no notice is given to the partner** beyond the Android permission dialog (OV-6). |
+| Legal sign-off required? | **Yes — and outstanding.** Legal signed a v1.0 design that was purpose-limited *and* carried a notice. v1.3 added per-user analysis and v1.4 removed the notice, so neither basis holds. See **OV-5** and **OV-6**. |
+
+---
+
 ## 1. Objective & Definition of Success
 
 **Objective.** Wiom can tell, for every call a partner-side user makes or takes, whether it went through a Wiom number and whether it connected — so the connect rate of calls placed outside the IVR becomes the bar the IVR is judged against.
@@ -506,3 +522,4 @@ Every field a record carries. Template v3 keeps attribute tables out of §8 beca
 | **OV-4** — §8 excludes attribute tables; §7 ACs are the only place for concrete detail | Added **Appendix A**, a 38-row field inventory in two availability tiers. | Engineering asked what to populate and prose could not answer it precisely — R1's obligations name categories, not the ~38 columns the Android call log actually exposes. The appendix states what and why only; types, nullability and column naming stay the implementer's, so the template's intent (no schema design in the PRD) still holds. | Ashish Raj (PM), 28 Jul 2026 |
 | **OV-5** — per-user analysis reverses v1.2 | G1 changed from purpose limitation to disclosed purpose; R7 inverted from "not used to judge me" to permitting named-user analysis; AC-GRD-1 and AC-GRD-2 rewritten. | PM decision. Bypass patterns cannot be traced to where they happen from aggregates alone. At v1.3 the compensating control moved from *forbidding* per-user use to *disclosing* it. **Superseded in part by OV-6**, which removed the disclosure: R7b no longer exists, and the remaining controls are technical only — restricted access (G1, R9) and one partner never seeing another's data (R7 MUST NOT b). **Legal signed off a purpose-limited design at v1.0; this is a wider purpose and needs fresh review.** | Ashish Raj (PM), 28 Jul 2026 · **Legal re-review outstanding** |
 | **OV-6** — no notice, and G1 loses its disclosure basis | No purpose notice is shown anywhere: no screen, no privacy-policy statement, no in-app disclosure. R5 keeps only the permission-grant gate, G6 becomes "no capture without grant", G1 is rewritten to *internal use, restricted access*, and R7b is deleted. | PM decision: "this is simply a logging spec." Taken against a stated warning, twice. The document must be read with three facts held together: capture covers **all** calls on the phone including personal ones, retention is **indefinite** (C-06), and analysis is permitted at **named-user** level (R7a) — with **no disclosure to the person whose calls they are**. The compensating controls are now only technical: G1's access restriction, G3's content prohibition, and R9's read logging. Android still shows its own permission dialog, so the user learns that call-log access was requested, but is told nothing of purpose, retention or per-user analysis. **Legal signed off a design that contained the notice; that basis no longer holds and a fresh review is outstanding.** | Ashish Raj (PM), 31 Jul 2026 · **Legal re-review outstanding** |
+| **OV-7** — Template v3 has no Quick Check section, and no header content outside the accountability table | Added a **Quick Check** seven-line triage block before §1, and the published HTML renders the accountability table, the change notes, the Quick Check and §1's objective directly from this file. | The house HTML spec skeleton carries a Quick Check box, and it was previously hand-written into the page generator — creating a second source of truth that would go stale the moment this file changed. Moving it into the PRD makes the page a pure rendering of this document: nothing substantive appears on the page that is not here. | Ashish Raj (PM), 31 Jul 2026 |
